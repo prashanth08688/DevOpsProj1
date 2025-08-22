@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Productivity Dashboard — YouTube + Pomodoro + GPT</title>
+<style>
+  :root{
+    --bg:#f4f6f8;
+    --card:#fff;
+    --muted:#666;
+    --accent:#0b84ff;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,Segoe UI,Arial,sans-serif;color:#111}
+  .container{
+    height:100%;
+    display:grid;
+    grid-template-columns: 2fr 1fr; /* left big, right small */
+    gap:12px;
+    padding:12px;
+    box-sizing:border-box;
+  }
+
+  /* Left: YouTube dashboard takes full height */
+  .youtube-panel{
+    background:var(--card);
+    border-radius:8px;
+    padding:12px;
+    box-shadow:0 6px 18px rgba(20,20,30,0.06);
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .youtube-controls{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .youtube-controls input[type="text"]{
+    flex:1;
+    padding:8px 10px;
+    border-radius:6px;
+    border:1px solid #ddd;
+    font-size:14px;
+  }
+  .youtube-controls button{
+    padding:8px 12px;
+    border-radius:6px;
+    border: none;
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  .video-wrap{
+    background:#000;
+    border-radius:6px;
+    overflow:hidden;
+    position:relative;
+    height:45vh; /* responsive-ish */
+    min-height:260px;
+    margin-bottom:12px;
+  }
+  .video-wrap iframe{ width:100%; height:100%; border:0; display:block; }
+
+  .meta{
+    display:flex;
+    gap:12px;
+    align-items:flex-start;
+  }
+  .thumb{
+    width:160px;
+    flex:0 0 160px;
+    border-radius:6px;
+    overflow:hidden;
+    background:#eee;
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .meta .info{
+    flex:1;
+    min-width:0;
+  }
+  .meta .info h2{ margin:0 0 6px 0; font-size:18px; line-height:1.2; }
+  .meta .info p{ margin:0; color:var(--muted); font-size:13px; white-space:pre-wrap; max-height:5.4em; overflow:hidden; }
+
+  .comments{
+    margin-top:12px;
+    background:#fbfdff;
+    border:1px solid #e6f1ff;
+    padding:10px;
+    border-radius:6px;
+  }
+  .comments h4{ margin:0 0 6px 0; font-size:14px; }
+  .comments ul{ list-style:none; padding:0; margin:0; max-height:18vh; overflow:auto; }
+  .comments li{ padding:8px 6px; border-bottom:1px dashed #eee; font-size:13px; color:#222; }
+  .comments li:last-child{ border-bottom:0 }
+
+  /* Right column: stacked */
+  .right-column{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  /* Pomodoro top-right (fixed small height) */
+  .pomodoro{
+    background:var(--card);
+    border-radius:8px;
+    padding:12px;
+    box-shadow:0 6px 18px rgba(20,20,30,0.06);
+    height:140px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .pomodoro .time{ font-size:28px; font-weight:700; text-align:center; letter-spacing:1px; }
+  .pomodoro .controls{ display:flex; gap:8px; justify-content:center; margin-top:6px; }
+  .pomodoro button{ padding:8px 10px; border-radius:6px; border:1px solid #ddd; background:white; cursor:pointer; }
+
+  /* GPT bottom-right - fixed area, no page-level scrolling, messages area scrolls */
+  .gpt{
+    background:var(--card);
+    border-radius:8px;
+    padding:10px;
+    box-shadow:0 6px 18px rgba(20,20,30,0.06);
+    display:flex;
+    flex-direction:column;
+    min-height:0;             /* allow proper flex sizing */
+    height: calc(100% - 152px); /* attempt to fill remaining space */
+    box-sizing:border-box;
+    overflow:hidden; /* prevent whole panel scrolling */
+  }
+  .gpt h3{ margin:0 0 8px 0; font-size:16px }
+  .messages{
+    flex:1 1 auto;
+    overflow:auto;
+    padding-right:6px;
+    margin-bottom:8px;
+  }
+  .msg{ margin-bottom:8px; font-size:13px; }
+  .msg.you{ text-align:right; color:#0b3d91; }
+  .msg.assistant{ text-align:left; color:#0b4d12; }
+  .gpt-controls{ display:flex; gap:8px; align-items:center }
+  .gpt-controls input[type="text"]{ flex:1; padding:8px 10px; border-radius:6px; border:1px solid #ddd; }
+  .gpt-controls button{ padding:8px 10px; border-radius:6px; border:none; background:var(--accent); color:white; cursor:pointer; }
+
+  /* small helpers */
+  .muted{ color:var(--muted); font-size:13px; }
+  .small{ font-size:12px; color:#777 }
+  @media (max-width:900px){
+    .container{ grid-template-columns: 1fr; grid-auto-rows: auto; height:auto; padding:10px }
+    .youtube-panel{ order:0 }
+    .right-column{ order:1; flex-direction:row; gap:8px; }
+    .pomodoro{ width:180px; height:auto; }
+    .gpt{ height:300px; min-height:200px; width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Left: YouTube dashboard -->
+  <div class="youtube-panel" id="youtubePanel">
+    <div class="youtube-controls">
+      <input id="videoUrl" type="text" placeholder="Paste YouTube URL (e.g. https://www.youtube.com/watch?v=...)" />
+      <button id="loadBtn">Load</button>
+      <button id="clearBtn" title="Clear">Clear</button>
+    </div>
+
+    <div class="video-wrap" id="videoWrap">
+      <!-- iframe inserted dynamically -->
+      <iframe id="player" src="" allowfullscreen sandbox="allow-same-origin allow-scripts allow-presentation"></iframe>
+    </div>
+
+    <div class="meta">
+      <div class="thumb" id="thumb">
+        <!-- thumbnail img -->
+      </div>
+      <div class="info">
+        <h2 id="title">Title will appear here</h2>
+        <p id="description" class="muted">Description will appear here (if available). If description cannot be fetched automatically, you can edit it manually.</p>
+        <div class="small" style="margin-top:6px;">
+          <span id="author" class="small muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="comments" id="commentsBlock" aria-live="polite">
+      <h4>Top comments (best-effort):</h4>
+      <ul id="commentsList">
+        <li class="small muted">No comments loaded yet.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div class="right-column">
+
+    <!-- Pomodoro -->
+    <div class="pomodoro" id="pomodoro">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="small">⏳ Pomodoro</div>
+          <div class="small muted">Work / Break cycles</div>
+        </div>
+        <div style="text-align:right">
+          <div class="small muted">Round</div>
+          <div id="roundCount" class="small">0</div>
+        </div>
+      </div>
+
+      <div class="time" id="pomTime">25:00</div>
+
+      <div class="controls">
+        <button id="pomStart">Start</button>
+        <button id="pomPause">Pause</button>
+        <button id="pomReset">Reset</button>
+      </div>
+    </div>
+
+    <!-- GPT Chat -->
+    <div class="gpt" id="gptPanel">
+      <h3>💬 GPT Chat</h3>
+      <div class="messages" id="messages">
+        <!-- messages added here -->
+      </div>
+
+      <div class="gpt-controls">
+        <input id="gptInput" type="text" placeholder="Type your message..." />
+        <button id="gptSend">Send</button>
+      </div>
+      <div class="small muted" style="margin-top:8px;">Assistant responses use a free public proxy (best-effort). If the proxy fails, responses will fallback to a simple local echo.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   Utilities
+   ------------------------- */
+function qs(id){return document.getElementById(id)}
+function safeText(s){ return (s === null || s === undefined) ? '' : String(s) }
+
+/* Extract videoId from many YouTube URL forms */
+function extractVideoId(url){
+  try{
+    const u = new URL(url);
+    const h = u.hostname.replace('www.','').toLowerCase();
+    if(h === 'youtu.be'){
+      return u.pathname.slice(1).split('?')[0];
+    }
+    if(u.searchParams.has('v')) return u.searchParams.get('v');
+    // embed path /embed/ID
+    const m = u.pathname.match(/\/embed\/([A-Za-z0-9_-]{11})/);
+    if(m) return m[1];
+    // fallback: find 11char token
+    const fallback = url.match(/([A-Za-z0-9_-]{11})/);
+    return fallback ? fallback[1] : null;
+  } catch(e){
+    // maybe plain id was provided
+    if(/^[A-Za-z0-9_-]{11}$/.test(url)) return url;
+    return null;
+  }
+}
+
+/* Display helper */
+function showLoadingMeta(){
+  qs('title').textContent = 'Loading...';
+  qs('description').textContent = 'Fetching metadata...';
+  qs('thumb').innerHTML = '';
+  qs('commentsList').innerHTML = '<li class="small muted">Loading comments…</li>';
+}
+
+/* Reset UI */
+function clearVideoUI(){
+  qs('player').src = '';
+  qs('title').textContent = 'Title will appear here';
+  qs('description').textContent = 'Description will appear here (if available). If description cannot be fetched automatically, you can edit it manually.';
+  qs('thumb').innerHTML = '';
+  qs('commentsList').innerHTML = '<li class="small muted">No comments loaded yet.</li>';
+  qs('author').textContent = '';
+}
+
+/* -------------------------
+   YouTube metadata fetching (no API)
+   Strategy:
+     1) Use noembed.com for quick title/author/thumbnail
+     2) Use jina.ai text-extraction endpoint (free) to fetch raw page text and parse meta description and some commentText runs
+     3) Fallbacks to AllOrigins CORS proxy if direct fails
+   Note: fetching comments is best-effort only; YouTube loads many comments dynamically.
+   ------------------------- */
+
+async function fetchNoEmbed(videoUrl){
+  try {
+    const api = 'https://noembed.com/embed?url=' + encodeURIComponent(videoUrl);
+    const r = await fetch(api);
+    if(!r.ok) throw new Error('noembed failed');
+    return await r.json();
+  } catch(err){
+    return null;
+  }
+}
+
+/* try to get page text via jina.ai free proxy (which returns text) */
+async function fetchPageTextViaJina(url){
+  const jina = 'https://r.jina.ai/http://'; // this endpoint takes a URL appended, returns text of page
+  try {
+    const r = await fetch(jina + url.replace(/^https?:\/\//,''));
+    if(!r.ok) throw new Error('jina fetch failed');
+    const txt = await r.text();
+    return txt;
+  } catch(e){
+    // try alternative free proxy (allorigins)
+    try {
+      const enc = encodeURIComponent(url);
+      const alt = 'https://api.allorigins.win/raw?url=' + enc;
+      const r2 = await fetch(alt);
+      if(!r2.ok) throw new Error('allorigins failed');
+      return await r2.text();
+    } catch(e2){
+      return null;
+    }
+  }
+}
+
+/* Parse description from raw HTML/text */
+function parseDescription(html){
+  if(!html) return null;
+  // try og:description
+  let m = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
+  if(m && m[1]) return decodeEntities(m[1]);
+  // try name="description"
+  m = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if(m && m[1]) return decodeEntities(m[1]);
+  // fallback: longer text search for "description": in ytInitialPlayerResponse
+  m = html.match(/"shortDescription":"([^"]*)"/);
+  if(m && m[1]) return decodeEntities(m[1]);
+  return null;
+}
+
+/* Find some comment texts from initial HTML JSON embedded on page */
+function parseCommentsFromHtml(html, maxComments=8){
+  if(!html) return [];
+  const found = [];
+  // search for patterns like "commentText":{"runs":[{"text":"..."} ...]}
+  const regex = /"commentText":\s*\{\s*"runs":\s*\[\s*\{\s*"text":"([^"]+?)"/g;
+  let match;
+  const seen = new Set();
+  while((match = regex.exec(html)) && found.length < maxComments){
+    const txt = decodeEntities(match[1].replace(/\\u0026/g,'&').replace(/\\n/g,' ').replace(/\\t/g,' ').trim());
+    if(txt && !seen.has(txt)){
+      seen.add(txt);
+      found.push(txt);
+    }
+  }
+  // alternative pattern for "simpleText":"..."
+  const regex2 = /"simpleText":"([^"]+?)"/g;
+  while(found.length < maxComments && (match = regex2.exec(html))){
+    const txt = decodeEntities(match[1].replace(/\\n/g,' ').trim());
+    if(txt && !seen.has(txt)){
+      seen.add(txt);
+      found.push(txt);
+    }
+  }
+  return found;
+}
+
+/* HTML entity decoder for basic entities */
+function decodeEntities(s){
+  if(!s) return s;
+  // replace common HTML entities and unicode escapes
+  return s
+    .replace(/&amp;/g,'&')
+    .replace(/&lt;/g,'<')
+    .replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"')
+    .replace(/&#39;/g,"'")
+    .replace(/\\u0026/g,'&')
+    .replace(/\\u00a0/g,' ')
+    .replace(/\\u2019/g,"'")
+    ;
+}
+
+/* Main loader */
+async function loadVideoFromUrl(url){
+  const id = extractVideoId(url);
+  if(!id){
+    alert('Could not parse a YouTube video ID from that URL. Try a regular watch or youtu.be link.');
+    return;
+  }
+
+  const watchUrl = 'https://www.youtube.com/watch?v=' + id;
+  showLoadingMeta();
+
+  // set embed src immediately
+  qs('player').src = `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`;
+
+  // 1) try noembed
+  let noembed = await fetchNoEmbed(watchUrl);
+
+  if(noembed && noembed.error){
+    noembed = null;
+  }
+
+  if(noembed){
+    qs('title').textContent = safeText(noembed.title || 'Title (noembed)');
+    qs('author').textContent = safeText(noembed.author_name ? 'By ' + noembed.author_name : '');
+    // show thumbnail from noembed (if available)
+    if(noembed.thumbnail_url){
+      qs('thumb').innerHTML = `<img src="${noembed.thumbnail_url}" alt="thumbnail">`;
+    } else {
+      qs('thumb').innerHTML = '';
+    }
+  } else {
+    qs('title').textContent = 'Title: (not available via noembed)';
+    qs('thumb').innerHTML = '';
+  }
+
+  // 2) try to fetch page text to extract description and comments
+  let pageText = await fetchPageTextViaJina(watchUrl); // tries jina.ai then allorigins
+  if(pageText){
+    const desc = parseDescription(pageText);
+    if(desc){
+      qs('description').textContent = desc;
+    } else {
+      // fallback: give brief snippet from page text
+      const snippet = pageText.replace(/\s+/g,' ').slice(0,300);
+      qs('description').textContent = snippet ? snippet + '...' : 'Description unavailable';
+    }
+
+    const comments = parseCommentsFromHtml(pageText,10);
+    if(comments && comments.length){
+      qs('commentsList').innerHTML = comments.map(c => `<li>${escapeHtml(c)}</li>`).join('');
+    } else {
+      qs('commentsList').innerHTML = '<li class="small muted">Comments unavailable (YouTube loads comments dynamically). You can add them manually.</li>';
+    }
+  } else {
+    // no page text -> offer manual placeholders
+    qs('description').textContent = 'Description unavailable (automatic scraping failed). You can edit this manually.';
+    qs('commentsList').innerHTML = '<li class="small muted">Comments unavailable (no page fetch). You can add them manually.</li>';
+  }
+}
+
+/* escape HTML guard for comment text insertion */
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"'`]/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#96;'})[m]);
+}
+
+/* -------------------------
+   Bind events for the loader
+   ------------------------- */
+qs('loadBtn').addEventListener('click', () => {
+  const url = qs('videoUrl').value.trim();
+  if(!url) return alert('Paste a YouTube link first');
+  loadVideoFromUrl(url);
+});
+qs('videoUrl').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') qs('loadBtn').click();
+});
+qs('clearBtn').addEventListener('click', clearVideoUI);
+
+/* -------------------------
+   Pomodoro logic (simple)
+   ------------------------- */
+let defaultDuration = 25 * 60; // seconds
+let remaining = defaultDuration;
+let pomTimer = null;
+let rounds = 0;
+
+function updatePomDisplay(){
+  const mm = String(Math.floor(remaining / 60)).padStart(2,'0');
+  const ss = String(remaining % 60).padStart(2,'0');
+  qs('pomTime').textContent = `${mm}:${ss}`;
+  qs('roundCount').textContent = rounds;
+}
+
+function startPom(){
+  if(pomTimer) return;
+  pomTimer = setInterval(() => {
+    remaining--;
+    if(remaining <= 0){
+      clearInterval(pomTimer);
+      pomTimer = null;
+      rounds++;
+      // small beep
+      try{ new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=').play() }catch(e){}
+      // reset for next round
+      remaining = defaultDuration;
+      updatePomDisplay();
+      alert('Pomodoro round finished!');
+    } else {
+      updatePomDisplay();
+    }
+  }, 1000);
+}
+function pausePom(){
+  if(pomTimer) { clearInterval(pomTimer); pomTimer = null; }
+}
+function resetPom(){
+  pausePom();
+  remaining = defaultDuration;
+  updatePomDisplay();
+  rounds = 0;
+}
+
+qs('pomStart').addEventListener('click', startPom);
+qs('pomPause').addEventListener('click', pausePom);
+qs('pomReset').addEventListener('click', resetPom);
+updatePomDisplay();
+
+/* -------------------------
+   GPT chat (best-effort free proxy with fallback)
+   - tries a free proxy endpoint, otherwise falls back to local echo
+   ------------------------- */
+
+const messagesEl = qs('messages');
+function appendMessage(role, text){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'You' ? 'you' : 'assistant');
+  div.innerHTML = `<strong>${role}:</strong> ${escapeHtml(text)}`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+async function sendToFreeProxy(userText){
+  // Try a sequence of known free-ish endpoints (best-effort).
+  // Note: availability can vary. We try in order and return first successful reply text.
+  const payload = {
+    model: "gpt-3.5-turbo",
+    messages: [{role:"user", content: userText}],
+    max_tokens: 500
+  };
+
+  // candidate endpoints (may or may not be available). We'll attempt fetch on each.
+  const endpoints = [
+    'https://api.gptfree.top/v1/chat/completions',      // often used free proxy
+    'https://freegpt.one/api/v1/chat/completions'       // example alt (availability not guaranteed)
+    // (we keep list short to avoid overfetching)
+  ];
+
+  for(const ep of endpoints){
+    try{
+      const res = await fetch(ep, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if(!res.ok) continue;
+      const j = await res.json();
+      // attempt to read assistant text
+      const text = j.choices?.[0]?.message?.content || j.result || j.output?.[0]?.content?.[0]?.text;
+      if(text) return text;
+    }catch(e){
+      // try next
+      continue;
+    }
+  }
+  // fallback local echo
+  return `Echo: ${userText}`;
+}
+
+qs('gptSend').addEventListener('click', async ()=>{
+  const txt = qs('gptInput').value.trim();
+  if(!txt) return;
+  appendMessage('You', txt);
+  qs('gptInput').value = '';
+  appendMessage('Assistant', 'Thinking...');
+  // replace the last assistant "Thinking..." with actual reply
+  try{
+    const reply = await sendToFreeProxy(txt);
+    // replace last assistant node
+    const last = messagesEl.querySelector('.msg.assistant:last-child');
+    if(last) last.innerHTML = `<strong>Assistant:</strong> ${escapeHtml(reply)}`;
+  }catch(e){
+    const last = messagesEl.querySelector('.msg.assistant:last-child');
+    if(last) last.innerHTML = `<strong>Assistant:</strong> Error: ${escapeHtml(e.message)}`;
+  }
+});
+qs('gptInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    qs('gptSend').click();
+  }
+});
+
+/* Pre-fill with a sample assistant error line the user previously mentioned (only if desired) */
+/* appendMessage('You','what is meant by this ionut cercel'); appendMessage('Assistant','Error: Failed to fetch'); */
+
+</script>
+</body>
+</html>

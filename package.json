@@ -1,0 +1,24 @@
+{
+    "name": "electron-productivity-app",
+    "version": "1.0.0",
+    "description": "Electron app with YouTube dashboard, GPT chat (free proxy), and Pomodoro timer",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "dev": "NODE_ENV=development electron ."
+    },
+    "keywords": [
+      "electron",
+      "youtube",
+      "gpt",
+      "pomodoro",
+      "productivity"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+      "electron": "^29.0.0",
+      "node-fetch": "^2.6.12"
+    }
+  }
+  
