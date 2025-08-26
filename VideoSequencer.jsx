@@ -1,1 +1,2 @@
-// Add this method const clearAllVideos = () => { setPlaylist([]); setCurrentIndex(0); }; 
+// Add this method 
+const clearAllVideos = () => { setPlaylist([]); setCurrentIndex(0); }; 
