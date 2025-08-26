@@ -160,6 +160,8 @@
 </head>
 <body>
 
+  <button id="themeToggle" style="position:fixed;top:10px;right:10px;z-index:1000;">🌙 Dark Mode</button>
+
 <div class="container">
   <!-- Left: YouTube dashboard -->
   <div class="youtube-panel" id="youtubePanel">
@@ -590,6 +592,13 @@ qs('gptInput').addEventListener('keydown', (e)=>{
 /* Pre-fill with a sample assistant error line the user previously mentioned (only if desired) */
 /* appendMessage('You','what is meant by this ionut cercel'); appendMessage('Assistant','Error: Failed to fetch'); */
 
+let dark = false;
+qs('themeToggle').addEventListener('click', () => {
+  dark = !dark;
+  document.body.style.background = dark ? "#121212" : "var(--bg)";
+  document.body.style.color = dark ? "#eee" : "#111";
+});
+  
 </script>
 </body>
 </html>
