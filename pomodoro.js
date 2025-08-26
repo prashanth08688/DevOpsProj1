@@ -1,45 +1,47 @@
-// pomodoro.js
-// Minimal Pomodoro timer logic (UI-independent)
-// Save as: app/pomodoro.js
+// app/pomodoro.js
+// Optimized Pomodoro timer with boundary checks
 
-let duration = 25 * 60; // default 25 mins
+let duration = 25 * 60; // default: 25 mins
 let remaining = duration;
 let timer = null;
-let onTick = null;
-let onComplete = null;
+let onTick = () => {};
+let onComplete = () => {};
 
 function start() {
-  if (timer) return; // already running
+  if (timer || remaining <= 0) return; // prevent double start / invalid
   timer = setInterval(() => {
-    remaining--;
-    if (onTick) onTick(remaining);
+    remaining = Math.max(0, remaining - 1); // ensure non-negative
+    onTick(remaining);
 
-    if (remaining <= 0) {
-      clearInterval(timer);
-      timer = null;
-      if (onComplete) onComplete();
+    if (remaining === 0) {
+      pause();
+      onComplete();
     }
   }, 1000);
 }
 
 function pause() {
-  clearInterval(timer);
-  timer = null;
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
 }
 
-function reset(newDuration = duration) {
+function reset(newMinutes = duration / 60) {
   pause();
-  duration = newDuration;
-  remaining = duration;
-  if (onTick) onTick(remaining);
+  setDuration(newMinutes);
+  onTick(remaining);
 }
 
-function setCallbacks(tickCb, completeCb) {
+function setCallbacks(tickCb = () => {}, completeCb = () => {}) {
   onTick = tickCb;
   onComplete = completeCb;
 }
 
 function setDuration(minutes) {
+  if (typeof minutes !== "number" || minutes <= 0) {
+    minutes = 25; // fallback to default
+  }
   duration = minutes * 60;
   remaining = duration;
 }
@@ -48,11 +50,16 @@ function getRemaining() {
   return remaining;
 }
 
+function isRunning() {
+  return timer !== null;
+}
+
 module.exports = {
   start,
   pause,
   reset,
   setCallbacks,
   setDuration,
-  getRemaining
+  getRemaining,
+  isRunning
 };
