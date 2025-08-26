@@ -514,6 +514,13 @@ qs('pomPause').addEventListener('click', pausePom);
 qs('pomReset').addEventListener('click', resetPom);
 updatePomDisplay();
 
+ document.addEventListener('keydown', (e) => {
+  if(e.altKey && e.key === 'p') qs('pomStart').click();   // Alt+P = Start Pomodoro
+  if(e.altKey && e.key === 'y') qs('videoUrl').focus();   // Alt+Y = focus YouTube input
+  if(e.altKey && e.key === 'c') qs('gptInput').focus();   // Alt+C = focus Chat
+});
+ 
+
 /* -------------------------
    GPT chat (best-effort free proxy with fallback)
    - tries a free proxy endpoint, otherwise falls back to local echo
