@@ -7,6 +7,13 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 // Default free endpoint — replace if blocked
 let GPT_ENDPOINT = 'https://api.gptfree.top/v1/chat/completions';
 
+// Add this function - Clear conversation history (reset to initial state)
+function clearHistory() {
+  // This function doesn't need to do much since history is managed by the component
+  // but it provides a clean API for the React component to use
+  return true; // Success
+}
+
 // Allow changing the endpoint at runtime
 function setEndpoint(url) {
   GPT_ENDPOINT = url;
@@ -36,5 +43,6 @@ async function sendMessage(message, history = []) {
 
 module.exports = {
   setEndpoint,
-  sendMessage
+  sendMessage,
+  clearHistory // Add this export
 };
