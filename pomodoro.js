@@ -2,7 +2,8 @@
 // Minimal Pomodoro timer logic (UI-independent)
 // Save as: app/pomodoro.js
 
-let duration = 25 * 60; // default 25 mins
+let originalDuration = 25 * 60; // default 25 mins
+let duration = originalDuration;
 let remaining = duration;
 let timer = null;
 let onTick = null;
@@ -27,9 +28,15 @@ function pause() {
   timer = null;
 }
 
-function reset(newDuration = duration) {
+function reset() {
   pause();
-  duration = newDuration;
+  remaining = duration; // Reset to current duration
+  if (onTick) onTick(remaining);
+}
+
+function resetToOriginal() {
+  pause();
+  duration = originalDuration;
   remaining = duration;
   if (onTick) onTick(remaining);
 }
@@ -40,7 +47,8 @@ function setCallbacks(tickCb, completeCb) {
 }
 
 function setDuration(minutes) {
-  duration = minutes * 60;
+  originalDuration = minutes * 60;
+  duration = originalDuration;
   remaining = duration;
 }
 
@@ -52,6 +60,7 @@ module.exports = {
   start,
   pause,
   reset,
+  resetToOriginal,
   setCallbacks,
   setDuration,
   getRemaining
