@@ -5,7 +5,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'cicd',
-                    credentialsId: 'github-creds',
+                    credentialsId: 'github_creds',
                     url: 'https://github.com/your-org/your-repo.git'
             }
         }
