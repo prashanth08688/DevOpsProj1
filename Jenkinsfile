@@ -32,15 +32,14 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo "🧪 Running tests..."
-                bat 'npm test'
+                echo "🧪 No tests defined, skipping..."
             }
         }
 
         stage('Approval for Merge') {
             steps {
                 script {
-                    input message: "✅ Tests passed! Approve merge into main branch manually on GitHub."
+                    input message: "✅ Build passed! Approve merge into main branch manually on GitHub."
                 }
             }
         }
