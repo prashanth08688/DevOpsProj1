@@ -6,7 +6,7 @@ pipeline {
             steps {
                 git branch: 'cicd',
                     credentialsId: 'github_creds',
-                    url: 'https://github.com/your-org/your-repo.git'
+                    url: 'https://github.com/prashanth08688/DevOpsProj1.git'
             }
         }
 
