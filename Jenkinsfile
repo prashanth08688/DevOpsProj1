@@ -1,33 +1,49 @@
 pipeline {
     agent any
 
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    environment {
+        BRANCH_NAME = "dev"
+    }
+
+    triggers {
+        pollSCM('H/2 * * * *')   // Check every 2 minutes
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'dev',
-                    credentialsId: 'github_creds',
-                    url: 'https://github.com/prashanth08688/DevOpsProj1.git'
+                git branch: "${BRANCH_NAME}", 
+                    url: 'https://github.com/prashanth08688/DevOpsProj1.git',
+                    credentialsId: 'github_creds'
             }
         }
 
         stage('Build') {
             steps {
-                echo "Building the application..."
-                // Example: sh 'mvn clean install'
+                echo "🔨 Building application..."
+                sh 'npm install'
             }
         }
 
         stage('Test') {
             steps {
-                echo "Running tests..."
-                // Example: sh 'mvn test'
+                echo "🧪 Running tests..."
+                sh 'npm test'
             }
         }
+    }
 
-        stage('Approval for Merge') {
-            steps {
-                input message: 'Approve to merge into main?', ok: 'Merge'
-            }
+    post {
+        success {
+            echo "🎉 CI pipeline passed on dev branch!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Please fix before merging."
         }
     }
 }
