@@ -1,6 +1,7 @@
 pipeline {
     agent any
 
+
     options {
         disableConcurrentBuilds()
         timestamps()
@@ -20,18 +21,32 @@ pipeline {
                 git branch: "${BRANCH_NAME}", 
                     url: 'https://github.com/prashanth08688/DevOpsProj1.git',
                     credentialsId: 'github_creds'
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'cicd',
+                    credentialsId: 'github_creds',
+                    url: 'https://github.com/prashanth08688/DevOpsProj1.git'
+
             }
         }
 
         stage('Build') {
             steps {
+
                 echo "🔨 Building application..."
                 sh 'npm install'
+
+                echo "Building project..."
+                // Example: sh 'mvn clean install'
+
             }
         }
 
         stage('Test') {
             steps {
+
                 echo "🧪 Running tests..."
                 sh 'npm test'
             }
@@ -54,4 +69,11 @@ pipeline {
             echo "❌ Pipeline failed. Fix issues before merging."
         }
     }
+
+                echo "Running tests..."
+                // Example: sh 'mvn test'
+            }
+        }
+    }
+
 }
